@@ -69,6 +69,7 @@ struct HfTaskDplus {
     registry.add("hd0Prong0", "3-prong candidates;prong 0 DCAxy to prim. vertex (cm);entries", {HistType::kTH2F, {{100, -1., 1.}, {vbins, "#it{p}_{T} (GeV/#it{c})"}}});
     registry.add("hd0Prong1", "3-prong candidates;prong 1 DCAxy to prim. vertex (cm);entries", {HistType::kTH2F, {{100, -1., 1.}, {vbins, "#it{p}_{T} (GeV/#it{c})"}}});
     registry.add("hd0Prong2", "3-prong candidates;prong 2 DCAxy to prim. vertex (cm);entries", {HistType::kTH2F, {{100, -1., 1.}, {vbins, "#it{p}_{T} (GeV/#it{c})"}}});
+    registry.add("hMlOutputSig", "3-prong candidates;ML output for signal hyp.;entries", {HistType::kTH2F, {{100, 0., 1.}, {vbins, "#it{p}_{T} (GeV/#it{c})"}}});    
     registry.add("hPtRecSig", "3-prong candidates (matched);#it{p}_{T}^{rec.} (GeV/#it{c});entries", {HistType::kTH1F, {{vbins, "#it{p}_{T} (GeV/#it{c})"}}});
     registry.add("hPtRecSigPrompt", "3-prong candidates (matched, prompt);#it{p}_{T}^{rec.} (GeV/#it{c});entries", {HistType::kTH1F, {{vbins, "#it{p}_{T} (GeV/#it{c})"}}});
     registry.add("hPtRecSigNonPrompt", "3-prong candidates (matched, non-prompt);#it{p}_{T}^{rec.} (GeV/#it{c});entries", {HistType::kTH1F, {{vbins, "#it{p}_{T} (GeV/#it{c})"}}});
@@ -210,7 +211,18 @@ struct HfTaskDplus {
       }
     }
   }
-  PROCESS_SWITCH(HfTaskDplus, processMc, "Process MC", false);
+  PROCESS_SWITCH(TaskDPlus, processMC, "Process MC", false);
+
+  Partition<soa::Join<aod::HfCandProng3, aod::HFSelDplusToPiKPiCandidate, aod::HFMlDplusToPiKPiCandidate>> selectedDPlusCandidatesForML = aod::hf_selcandidate_dplus::isSelDplusToPiKPi >= 7;
+
+  void processML(soa::Join<aod::HfCandProng3, aod::HFSelDplusToPiKPiCandidate, aod::HFMlDplusToPiKPiCandidate> const& candidates)
+  {
+    // Process additional ML information
+    for (auto& candidate : selectedDPlusCandidatesForML) {
+      registry.fill(HIST("hMlOutputSig"), candidate.mlProbDplusToPiKPi()[1], candidate.pt());
+    }
+  }
+  PROCESS_SWITCH(TaskDPlus, processML, "Process ML", false);
 };
 
 WorkflowSpec defineDataProcessing(ConfigContext const& cfgc)

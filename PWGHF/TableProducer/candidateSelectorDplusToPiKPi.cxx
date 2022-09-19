@@ -47,15 +47,17 @@ struct HfCandidateSelectorDplusToPiKPi {
   Configurable<LabeledArray<double>> cuts{"cuts", {hf_cuts_dplus_to_pi_k_pi::cuts[0], nBinsPt, nCutVars, labelsPt, labelsCutVar}, "Dplus candidate selection per pT bin"};
 
   // ML inference
+  Configurable<bool> b_applyML{"b_applyML", false, "Flag to apply ML selections"};
+  std::shared_ptr<Ort::Experimental::Session> session = nullptr;
+  Ort::SessionOptions sessionOptions;
+  Ort::Env env{ORT_LOGGING_LEVEL_WARNING, "ml-model-hf-dplus-selector"};
   std::vector<std::string> inputNamesML{};
   std::vector<std::vector<int64_t>> inputShapesML{};
   std::vector<std::string> outputNamesML{};
   std::vector<std::vector<int64_t>> outputShapesML{};
-  std::shared_ptr<Ort::Experimental::Session> session = nullptr;
-  Ort::SessionOptions sessionOptions;
-  Ort::Env env{ORT_LOGGING_LEVEL_WARNING, "ml-model-hf-dplus-selector"};
-  std::vector<float> mlOutput = {};
-
+  std::vector<Ort::Value> inputML = {};
+  std::vector<float> dummyOutputML = {};
+  
   /*
   /// Selection on goodness of daughter tracks
   /// \note should be applied at candidate selection
@@ -117,15 +119,16 @@ struct HfCandidateSelectorDplusToPiKPi {
 
   void init(o2::framework::InitContext&)
   {
-    std::string onnxFile = std::getenv("MLMODELS_ROOT") + std::string("/models/HF/Tests/XGBoostModel_PbPb3050_pT_12_36_120121_converted.onnx");
-    session.reset(new Ort::Experimental::Session{env, onnxFile, sessionOptions});
-
-    inputNamesML = session->GetInputNames();
-    inputShapesML = session->GetInputShapes();
-    outputNamesML = session->GetOutputNames();
-    outputShapesML = session->GetOutputShapes();
-    mlOutput.reserve(outputShapesML[1][1]);
-    LOG(info) << "Number of outputs: " << outputShapesML[1][1];
+    if (b_applyML) {
+      std::string onnxFile = std::getenv("MLMODELS_ROOT") + std::string("/models/HF/Tests/XGBoostModel_PbPb3050_pT_12_36_120121_converted.onnx");
+      session = std::make_shared<Ort::Experimental::Session>(env, onnxFile, sessionOptions);
+      inputNamesML = session->GetInputNames();
+      inputShapesML = session->GetInputShapes();
+      outputNamesML = session->GetOutputNames();
+      outputShapesML = session->GetOutputShapes();
+      LOG(info) << "Applying ML!";
+      LOG(info) << "Number of outputs: " << outputShapesML[1][1];
+    }
   }
 
    void process(aod::HfCand3Prong const& candidates, aod::BigTracksPID const&)
@@ -146,12 +149,12 @@ struct HfCandidateSelectorDplusToPiKPi {
 
       // final selection flag:
       auto statusDplusToPiKPi = 0;
-      // clear ML output
-      mlOutput.clear();
 
       if (!(candidate.hfflag() & 1 << DecayType::DplusToPiKPi)) {
         hfSelDplusToPiKPiCandidate(statusDplusToPiKPi);
-        hfMlDplusToPiKPiCandidate(mlOutput);
+        if (b_applyML) {
+          hfMlDplusToPiKPiCandidate(dummyOutputML);
+        }
         continue;
       }
       SETBIT(statusDplusToPiKPi, aod::SelectionStep::RecoSkims);
@@ -173,7 +176,9 @@ struct HfCandidateSelectorDplusToPiKPi {
       // topological selection
       if (!selection(candidate, trackPos1, trackNeg, trackPos2)) {
         hfSelDplusToPiKPiCandidate(statusDplusToPiKPi);
-        hfMlDplusToPiKPiCandidate(mlOutput);
+        if (b_applyML) {
+          hfMlDplusToPiKPiCandidate(dummyOutputML);
+        }
         continue;
       }
       SETBIT(statusDplusToPiKPi, aod::SelectionStep::RecoTopol);
@@ -187,26 +192,31 @@ struct HfCandidateSelectorDplusToPiKPi {
           pidTrackNegKaon == TrackSelectorPID::Status::PIDRejected ||
           pidTrackPos2Pion == TrackSelectorPID::Status::PIDRejected) { // exclude D±
         hfSelDplusToPiKPiCandidate(statusDplusToPiKPi);
-        hfMlDplusToPiKPiCandidate(mlOutput);
+        if (b_applyML) {
+          hfMlDplusToPiKPiCandidate(dummyOutputML);
+        }
         continue;
       }
       SETBIT(statusDplusToPiKPi, aod::SelectionStep::RecoPID);
 
-      // ML selections
-      std::vector<float> inputFeatures{candidate.cpa(), candidate.cpaXY(), candidate.decayLength(), candidate.decayLengthXY(),
-                                       candidate.decayLengthXYNormalised(), candidate.impactParameterXY(), 200., 5., 0.8, 
-                                       candidate.maxNormalisedDeltaIP(), 2., 2., 2., 2., 2., 2.};
-      std::vector<Ort::Value> inputTensor;
-      inputTensor.push_back(Ort::Experimental::Value::CreateTensor<float>(inputFeatures.data(), inputFeatures.size(), inputShapesML[0]));
+      if (b_applyML) {
+        // ML selections
+        std::vector<float> inputFeatures{candidate.cpa(), candidate.cpaXY(), candidate.decayLength(), candidate.decayLengthXY(),
+                                        candidate.decayLengthXYNormalised(), candidate.impactParameterXY(), 200., 5., 0.8, 
+                                        candidate.maxNormalisedDeltaIP(), 2., 2., 2., 2., 2., 2.};
+        inputML.push_back(Ort::Experimental::Value::CreateTensor<float>(inputFeatures.data(), inputFeatures.size(), inputShapesML[0]));
 
-      auto outputTensor = session->Run(inputNamesML, inputTensor, outputNamesML);
-      auto scores = outputTensor[1].GetTensorMutableData<float>();
-      mlOutput.insert(mlOutput.begin(), scores, scores + outputShapesML[1][1]);
+        auto outputTensor = session->Run(inputNamesML, inputML, outputNamesML);
+        auto scores = outputTensor[1].GetTensorMutableData<float>();
+        std::vector<float> outputML(scores, scores + outputShapesML[1][1]);
+        hfMlDplusToPiKPiCandidate(outputML);
+        
+        SETBIT(statusDplusToPiKPi, aod::SelectionStep::RecoMl);
 
-      SETBIT(statusDplusToPiKPi, aod::SelectionStep::RecoMl);
+        inputML.clear();
+      }
 
-      hfSelDplusToPiKPiCandidate(statusDplusToPiKPi);
-      hfMlDplusToPiKPiCandidate(mlOutput);
+      hfSelDplusToPiKPiCandidate(statusDplusToPiKPi);  
     }
   }
 };

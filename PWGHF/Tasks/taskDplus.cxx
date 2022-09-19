@@ -69,7 +69,8 @@ struct HfTaskDplus {
     registry.add("hd0Prong0", "3-prong candidates;prong 0 DCAxy to prim. vertex (cm);entries", {HistType::kTH2F, {{100, -1., 1.}, {vbins, "#it{p}_{T} (GeV/#it{c})"}}});
     registry.add("hd0Prong1", "3-prong candidates;prong 1 DCAxy to prim. vertex (cm);entries", {HistType::kTH2F, {{100, -1., 1.}, {vbins, "#it{p}_{T} (GeV/#it{c})"}}});
     registry.add("hd0Prong2", "3-prong candidates;prong 2 DCAxy to prim. vertex (cm);entries", {HistType::kTH2F, {{100, -1., 1.}, {vbins, "#it{p}_{T} (GeV/#it{c})"}}});
-    registry.add("hMlOutputSig", "3-prong candidates;ML output for signal hyp.;entries", {HistType::kTH2F, {{100, 0., 1.}, {vbins, "#it{p}_{T} (GeV/#it{c})"}}});    
+    registry.add("hMlBinaryOutput", "3-prong candidates", {HistType::kTH2F, {{100, 0., 1., "ML output for signal hyp."}, {vbins, "#it{p}_{T} (GeV/#it{c})"}}});
+    registry.add("hMlMultiOutput", "3-prong candidates", {HistType::kTHnF, {{100, 0., 1., "ML output for first class hyp."}, {100, 0., 1., "ML output for second class hyp."}, {100, 0., 1., "ML output for third class hyp."}, {vbins, "#it{p}_{T} (GeV/#it{c})"}}});
     registry.add("hPtRecSig", "3-prong candidates (matched);#it{p}_{T}^{rec.} (GeV/#it{c});entries", {HistType::kTH1F, {{vbins, "#it{p}_{T} (GeV/#it{c})"}}});
     registry.add("hPtRecSigPrompt", "3-prong candidates (matched, prompt);#it{p}_{T}^{rec.} (GeV/#it{c});entries", {HistType::kTH1F, {{vbins, "#it{p}_{T} (GeV/#it{c})"}}});
     registry.add("hPtRecSigNonPrompt", "3-prong candidates (matched, non-prompt);#it{p}_{T}^{rec.} (GeV/#it{c});entries", {HistType::kTH1F, {{vbins, "#it{p}_{T} (GeV/#it{c})"}}});
@@ -213,16 +214,25 @@ struct HfTaskDplus {
   }
   PROCESS_SWITCH(TaskDPlus, processMC, "Process MC", false);
 
-  Partition<soa::Join<aod::HfCandProng3, aod::HFSelDplusToPiKPiCandidate, aod::HFMlDplusToPiKPiCandidate>> selectedDPlusCandidatesForML = aod::hf_selcandidate_dplus::isSelDplusToPiKPi >= 7;
+  Partition<soa::Join<aod::HfCandProng3, aod::HFSelDplusToPiKPiCandidate, aod::HFMlDplusToPiKPiCandidate>> selectedDPlusCandidatesForML = aod::hf_selcandidate_dplus::isSelDplusToPiKPi >= d_selectionFlagDPlus;
 
-  void processML(soa::Join<aod::HfCandProng3, aod::HFSelDplusToPiKPiCandidate, aod::HFMlDplusToPiKPiCandidate> const& candidates)
+  void processBinaryML(soa::Join<aod::HfCandProng3, aod::HFSelDplusToPiKPiCandidate, aod::HFMlDplusToPiKPiCandidate> const& candidates)
   {
-    // Process additional ML information
+    // Process ML information from binary classification
     for (auto& candidate : selectedDPlusCandidatesForML) {
-      registry.fill(HIST("hMlOutputSig"), candidate.mlProbDplusToPiKPi()[1], candidate.pt());
+      registry.fill(HIST("hMlBinaryOutput"), candidate.mlProbDplusToPiKPi()[1], candidate.pt());
     }
   }
-  PROCESS_SWITCH(TaskDPlus, processML, "Process ML", false);
+  PROCESS_SWITCH(TaskDPlus, processBinaryML, "Process binary classification ML", false);
+
+   void processMultiML(soa::Join<aod::HfCandProng3, aod::HFSelDplusToPiKPiCandidate, aod::HFMlDplusToPiKPiCandidate> const& candidates)
+  {
+    // Process ML information from multiclass classification
+    for (auto& candidate : selectedDPlusCandidatesForML) {
+      registry.fill(HIST("hMlMultiOutput"), candidate.mlProbDplusToPiKPi()[0], candidate.mlProbDplusToPiKPi()[1], candidate.mlProbDplusToPiKPi()[2], candidate.pt());
+    }
+  }
+  PROCESS_SWITCH(TaskDPlus, processMultiML, "Process multiclass classification ML", false);
 };
 
 WorkflowSpec defineDataProcessing(ConfigContext const& cfgc)

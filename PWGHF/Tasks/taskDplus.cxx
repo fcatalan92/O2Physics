@@ -225,7 +225,7 @@ struct HfTaskDplus {
   }
   PROCESS_SWITCH(TaskDPlus, processBinaryML, "Process binary classification ML", false);
 
-   void processMultiML(soa::Join<aod::HfCandProng3, aod::HFSelDplusToPiKPiCandidate, aod::HFMlDplusToPiKPiCandidate> const& candidates)
+  void processMultiML(soa::Join<aod::HfCandProng3, aod::HFSelDplusToPiKPiCandidate, aod::HFMlDplusToPiKPiCandidate> const& candidates)
   {
     // Process ML information from multiclass classification
     for (auto& candidate : selectedDPlusCandidatesForML) {

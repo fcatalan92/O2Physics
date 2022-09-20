@@ -126,6 +126,7 @@ struct HfCandidateSelectorDplusToPiKPi {
       inputShapesML = session->GetInputShapes();
       outputNamesML = session->GetOutputNames();
       outputShapesML = session->GetOutputShapes();
+      dummyOutputML.assign(outputShapesML[1][1], 0.f);
       LOG(info) << "Applying ML!";
       LOG(info) << "Number of outputs: " << outputShapesML[1][1];
     }

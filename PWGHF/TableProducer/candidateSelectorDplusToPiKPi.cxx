@@ -57,7 +57,7 @@ struct HfCandidateSelectorDplusToPiKPi {
   std::vector<std::vector<int64_t>> outputShapesML{};
   std::vector<Ort::Value> inputML = {};
   std::vector<float> dummyOutputML = {};
-  
+
   /*
   /// Selection on goodness of daughter tracks
   /// \note should be applied at candidate selection
@@ -203,21 +203,21 @@ struct HfCandidateSelectorDplusToPiKPi {
       if (b_applyML) {
         // ML selections
         std::vector<float> inputFeatures{candidate.cpa(), candidate.cpaXY(), candidate.decayLength(), candidate.decayLengthXY(),
-                                        candidate.decayLengthXYNormalised(), candidate.impactParameterXY(), 200., 5., 0.8, 
-                                        candidate.maxNormalisedDeltaIP(), 2., 2., 2., 2., 2., 2.};
+                                         candidate.decayLengthXYNormalised(), candidate.impactParameterXY(), 200., 5., 0.8,
+                                         candidate.maxNormalisedDeltaIP(), 2., 2., 2., 2., 2., 2.};
         inputML.push_back(Ort::Experimental::Value::CreateTensor<float>(inputFeatures.data(), inputFeatures.size(), inputShapesML[0]));
 
         auto outputTensor = session->Run(inputNamesML, inputML, outputNamesML);
         auto scores = outputTensor[1].GetTensorMutableData<float>();
         std::vector<float> outputML(scores, scores + outputShapesML[1][1]);
         hfMlDplusToPiKPiCandidate(outputML);
-        
+
         SETBIT(statusDplusToPiKPi, aod::SelectionStep::RecoMl);
 
         inputML.clear();
       }
 
-      hfSelDplusToPiKPiCandidate(statusDplusToPiKPi);  
+      hfSelDplusToPiKPiCandidate(statusDplusToPiKPi);
     }
   }
 };

@@ -24,8 +24,8 @@
 
 using namespace o2;
 using namespace o2::framework;
-using namespace o2::aod::hf_cand_3prong;
-using namespace o2::analysis::hf_cuts_dplus_to_pi_k_pi;
+using namespace o2::analysis;
+using namespace o2::aod::hf_cand_prong3;
 
 /// Struct for applying Dplus to piKpi selection cuts
 struct HfCandidateSelectorDplusToPiKPi {
@@ -44,10 +44,16 @@ struct HfCandidateSelectorDplusToPiKPi {
   Configurable<double> nSigmaTofMax{"nSigmaTofMax", 3., "Nsigma cut on TOF"};
   // topological cuts
   Configurable<std::vector<double>> binsPt{"binsPt", std::vector<double>{hf_cuts_dplus_to_pi_k_pi::vecBinsPt}, "pT bin limits"};
-  Configurable<LabeledArray<double>> cuts{"cuts", {hf_cuts_dplus_to_pi_k_pi::cuts[0], nBinsPt, nCutVars, labelsPt, labelsCutVar}, "Dplus candidate selection per pT bin"};
+  Configurable<LabeledArray<double>> cuts{"cuts", {hf_cuts_dplus_to_pi_k_pi::cuts[0], hf_cuts_dplus_to_pi_k_pi::nBinsPt, hf_cuts_dplus_to_pi_k_pi::nCutVars, hf_cuts_dplus_to_pi_k_pi::labelsPt, hf_cuts_dplus_to_pi_k_pi::labelsCutVar}, "Dplus candidate selection per pT bin"};
 
   // ML inference
   Configurable<bool> b_applyML{"b_applyML", false, "Flag to apply ML selections"};
+  Configurable<std::vector<double>> pTBinsML{"pTBinsML", std::vector<double>{hf_cuts_ml::pTBins_v}, "pT bin limits for ML application"};
+  Configurable<std::vector<std::string>> modelPathsML{"modelPathsML", std::vector<std::string>{"/models/HF/Tests/XGBoostModel_PbPb3050_pT_12_36_120121_converted.onnx"}, "Paths of the ML models, one for each pT bin"};
+  Configurable<LabeledArray<double>> cutsML{"ml_cuts", {hf_cuts_ml::cuts[0], hf_cuts_ml::npTBins, hf_cuts_ml::nCutScores, hf_cuts_ml::pTBinLabels, hf_cuts_ml::cutScoreLabels}, "ML selections per pT bin"};
+  Configurable<std::vector<int>> cutDirML{"cutDirML", std::vector<int>{hf_cuts_ml::cutDir_v}, "Wheter to reject score values greater or smaller than the threshold"};
+
+  // objects for ML inference
   std::shared_ptr<Ort::Experimental::Session> session = nullptr;
   Ort::SessionOptions sessionOptions;
   Ort::Env env{ORT_LOGGING_LEVEL_WARNING, "ml-model-hf-dplus-selector"};

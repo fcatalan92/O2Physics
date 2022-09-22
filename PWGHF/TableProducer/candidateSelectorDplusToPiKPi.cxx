@@ -49,18 +49,16 @@ struct HfCandidateSelectorDplusToPiKPi {
   // ML inference
   Configurable<bool> b_applyML{"b_applyML", false, "Flag to apply ML selections"};
   Configurable<std::vector<double>> pTBinsML{"pTBinsML", std::vector<double>{hf_cuts_ml::pTBins_v}, "pT bin limits for ML application"};
-  Configurable<std::vector<std::string>> modelPathsML{"modelPathsML", std::vector<std::string>{"/models/HF/Tests/XGBoostModel_PbPb3050_pT_12_36_120121_converted.onnx"}, "Paths of the ML models, one for each pT bin"};
+  Configurable<std::vector<std::string>> modelPathsML{"modelPathsML", std::vector<std::string>{hf_cuts_ml::modelPaths}, "Paths of the ML models, one for each pT bin"};
   Configurable<LabeledArray<double>> cutsML{"ml_cuts", {hf_cuts_ml::cuts[0], hf_cuts_ml::npTBins, hf_cuts_ml::nCutScores, hf_cuts_ml::pTBinLabels, hf_cuts_ml::cutScoreLabels}, "ML selections per pT bin"};
   Configurable<std::vector<int>> cutDirML{"cutDirML", std::vector<int>{hf_cuts_ml::cutDir_v}, "Wheter to reject score values greater or smaller than the threshold"};
 
   // objects for ML inference
-  std::shared_ptr<Ort::Experimental::Session> session = nullptr;
   Ort::SessionOptions sessionOptions;
   Ort::Env env{ORT_LOGGING_LEVEL_WARNING, "ml-model-hf-dplus-selector"};
-  std::vector<std::string> inputNamesML{};
-  std::vector<std::vector<int64_t>> inputShapesML{};
-  std::vector<std::string> outputNamesML{};
-  std::vector<std::vector<int64_t>> outputShapesML{};
+  std::vector<std::shared_ptr<Ort::Experimental::Session>> sessions = {};
+  std::vector<std::vector<std::vector<int64_t>>> inputShapesML = {};
+  std::vector<std::vector<std::vector<int64_t>>> outputShapesML = {};
   std::vector<Ort::Value> inputML = {};
   std::vector<float> dummyOutputML = {};
 
@@ -126,15 +124,17 @@ struct HfCandidateSelectorDplusToPiKPi {
   void init(o2::framework::InitContext&)
   {
     if (b_applyML) {
-      std::string onnxFile = std::getenv("MLMODELS_ROOT") + std::string("/models/HF/Tests/XGBoostModel_PbPb3050_pT_12_36_120121_converted.onnx");
-      session = std::make_shared<Ort::Experimental::Session>(env, onnxFile, sessionOptions);
-      inputNamesML = session->GetInputNames();
-      inputShapesML = session->GetInputShapes();
-      outputNamesML = session->GetOutputNames();
-      outputShapesML = session->GetOutputShapes();
-      dummyOutputML.assign(outputShapesML[1][1], 0.f);
       LOG(info) << "Applying ML!";
-      LOG(info) << "Number of outputs: " << outputShapesML[1][1];
+      for (auto& path : (std::vector<std::string>)modelPathsML) {
+        std::string onnxFile = std::getenv("MLMODELS_ROOT") + path;
+        auto session = std::make_shared<Ort::Experimental::Session>(env, onnxFile, sessionOptions);
+        sessions.push_back(session);
+        inputShapesML.push_back(session->GetInputShapes());
+        outputShapesML.push_back(session->GetOutputShapes());
+        LOG(info) << "Loaded ML model from: " << onnxFile;
+        LOG(info) << "Number of outputs: " << session->GetOutputShapes()[1][1];
+      }
+      dummyOutputML.assign(outputShapesML[0][1][1], 0.f);
     }
   }
 
@@ -211,14 +211,36 @@ struct HfCandidateSelectorDplusToPiKPi {
         std::vector<float> inputFeatures{candidate.cpa(), candidate.cpaXY(), candidate.decayLength(), candidate.decayLengthXY(),
                                          candidate.decayLengthXYNormalised(), candidate.impactParameterXY(), 200., 5., 0.8,
                                          candidate.maxNormalisedDeltaIP(), 2., 2., 2., 2., 2., 2.};
-        inputML.push_back(Ort::Experimental::Value::CreateTensor<float>(inputFeatures.data(), inputFeatures.size(), inputShapesML[0]));
 
-        auto outputTensor = session->Run(inputNamesML, inputML, outputNamesML);
+        int pTBin = findBin(pTBinsML, candidate.pt());
+
+        //TODO: assure that the various vectors are of the same size
+        inputML.push_back(Ort::Experimental::Value::CreateTensor<float>(inputFeatures.data(), inputFeatures.size(), inputShapesML[pTBin][0]));
+
+        auto outputTensor = sessions[pTBin]->Run(sessions[pTBin]->GetInputNames(), inputML, sessions[pTBin]->GetOutputNames());
         auto scores = outputTensor[1].GetTensorMutableData<float>();
-        std::vector<float> outputML(scores, scores + outputShapesML[1][1]);
+        std::vector<float> outputML(scores, scores + outputShapesML[pTBin][1][1]);
         hfMlDplusToPiKPiCandidate(outputML);
 
-        SETBIT(statusDplusToPiKPi, aod::SelectionStep::RecoMl);
+        bool isSelectedML = true;
+        
+        for (int i = 0; i < outputShapesML[pTBin][1][1]; i++) {
+          int dir = cutDirML->at(i);
+          if (dir != hf_cuts_ml::CutNot) {
+            if (dir == hf_cuts_ml::CutGreater && outputML[i] > cutsML->get(pTBin, i)) {
+              isSelectedML = false;
+              break;
+            }
+            if (dir == hf_cuts_ml::CutSmaller && outputML[i] < cutsML->get(pTBin, i)) {
+              isSelectedML = false;
+              break;
+            }
+          }
+        }
+        
+        if (isSelectedML) {
+          SETBIT(statusDplusToPiKPi, aod::SelectionStep::RecoMl);
+        }
 
         inputML.clear();
       }

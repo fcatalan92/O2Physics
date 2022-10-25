@@ -123,9 +123,9 @@ static const std::vector<std::string> labelsCutBdt = {"BDTbkg", "BDTprompt", "BD
 namespace hf_cuts_ml
 {
 // direction of the cut
-enum CutDirection {
-  CutGreater, // require cut value > score
-  CutSmaller, // require cut value < score
+enum CutDirection{
+  CutGreater, // require score < cut value
+  CutSmaller, // require score > cut value
   CutNot      // do not cut on score
 };
 

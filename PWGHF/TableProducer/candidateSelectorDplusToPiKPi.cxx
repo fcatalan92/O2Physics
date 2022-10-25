@@ -50,8 +50,8 @@ struct HfCandidateSelectorDplusToPiKPi {
   Configurable<bool> b_applyML{"b_applyML", false, "Flag to apply ML selections"};
   Configurable<std::vector<double>> pTBinsML{"pTBinsML", std::vector<double>{hf_cuts_ml::pTBins_v}, "pT bin limits for ML application"};
   Configurable<std::vector<std::string>> modelPathsML{"modelPathsML", std::vector<std::string>{hf_cuts_ml::modelPaths}, "Paths of the ML models, one for each pT bin"};
-  Configurable<LabeledArray<double>> cutsML{"ml_cuts", {hf_cuts_ml::cuts[0], hf_cuts_ml::npTBins, hf_cuts_ml::nCutScores, hf_cuts_ml::pTBinLabels, hf_cuts_ml::cutScoreLabels}, "ML selections per pT bin"};
   Configurable<std::vector<int>> cutDirML{"cutDirML", std::vector<int>{hf_cuts_ml::cutDir_v}, "Wheter to reject score values greater or smaller than the threshold"};
+  Configurable<LabeledArray<double>> cutsML{"ml_cuts", {hf_cuts_ml::cuts[0], hf_cuts_ml::npTBins, hf_cuts_ml::nCutScores, hf_cuts_ml::pTBinLabels, hf_cuts_ml::cutScoreLabels}, "ML selections per pT bin"};
 
   // objects for ML inference
   Ort::SessionOptions sessionOptions;
@@ -223,21 +223,21 @@ struct HfCandidateSelectorDplusToPiKPi {
         hfMlDplusToPiKPiCandidate(outputML);
 
         bool isSelectedML = true;
-        
+
         for (int i = 0; i < outputShapesML[pTBin][1][1]; i++) {
           int dir = cutDirML->at(i);
-          if (dir != hf_cuts_ml::CutNot) {
-            if (dir == hf_cuts_ml::CutGreater && outputML[i] > cutsML->get(pTBin, i)) {
+          if (dir != hf_cuts_ml::CutDirection::CutNot) {
+            if (dir == hf_cuts_ml::CutDirection::CutGreater && outputML[i] > cutsML->get(pTBin, i)) {
               isSelectedML = false;
               break;
             }
-            if (dir == hf_cuts_ml::CutSmaller && outputML[i] < cutsML->get(pTBin, i)) {
+            if (dir == hf_cuts_ml::CutDirection::CutSmaller && outputML[i] < cutsML->get(pTBin, i)) {
               isSelectedML = false;
               break;
             }
           }
         }
-        
+
         if (isSelectedML) {
           SETBIT(statusDplusToPiKPi, aod::SelectionStep::RecoMl);
         }

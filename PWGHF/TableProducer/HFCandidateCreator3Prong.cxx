@@ -42,6 +42,8 @@ struct HFCandidateCreator3Prong {
   Configurable<bool> doPvRefit{"doPvRefit", false, "do PV refit excluding the candidate daughters, if contributors"};
   // Configurable<double> magneticField{"d_bz", 5., "magnetic field"};
   Configurable<bool> b_propdca{"b_propdca", true, "create tracks version propagated to PCA"};
+  Configurable<bool> b_useAbsDCA{"b_useAbsDCA", true, "Minimise abs. distance rather than chi2"};
+  Configurable<bool> b_useWeightedFinalPCA{"b_useWeightedFinalPCA", false, "Recalculate vertex position using track covariances, effective only if useAbsDCA is true"};
   Configurable<double> d_maxr{"d_maxr", 200., "reject PCA's above this radius"};
   Configurable<double> d_maxdzini{"d_maxdzini", 4., "reject (if>0) PCA candidate if tracks DZ exceeds threshold"};
   Configurable<double> d_minparamchange{"d_minparamchange", 1.e-3, "stop iterations if largest change of any X is smaller than this"};
@@ -104,7 +106,8 @@ struct HFCandidateCreator3Prong {
     df.setMaxDZIni(d_maxdzini);
     df.setMinParamChange(d_minparamchange);
     df.setMinRelChi2Change(d_minrelchi2change);
-    df.setUseAbsDCA(true);
+    df.setUseAbsDCA(b_useAbsDCA);
+    df.setWeightedFinalPCA(b_useWeightedFinalPCA);
 
     // loop over triplets of track indices
     for (const auto& rowTrackIndexProng3 : rowsTrackIndexProng3) {

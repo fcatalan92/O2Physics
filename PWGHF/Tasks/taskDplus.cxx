@@ -212,27 +212,27 @@ struct HfTaskDplus {
       }
     }
   }
-  PROCESS_SWITCH(TaskDPlus, processMC, "Process MC", false);
+  PROCESS_SWITCH(HfTaskDplus, processMc, "Process MC", false);
 
-  Partition<soa::Join<aod::HfCandProng3, aod::HFSelDplusToPiKPiCandidate, aod::HFMlDplusToPiKPiCandidate>> selectedDPlusCandidatesForML = aod::hf_selcandidate_dplus::isSelDplusToPiKPi >= d_selectionFlagDPlus;
+  Partition<soa::Join<aod::HfCand3Prong, aod::HfSelDplusToPiKPi, aod::HfMlDplusToPiKPi>> selectedDPlusCandidatesForML = aod::hf_sel_candidate_dplus::isSelDplusToPiKPi >= selectionFlagDplus;
 
-  void processBinaryML(soa::Join<aod::HfCandProng3, aod::HFSelDplusToPiKPiCandidate, aod::HFMlDplusToPiKPiCandidate> const& candidates)
+  void processBinaryMl(soa::Join<aod::HfCand3Prong, aod::HfSelDplusToPiKPi, aod::HfMlDplusToPiKPi> const& candidates)
   {
     // Process ML information from binary classification
     for (auto& candidate : selectedDPlusCandidatesForML) {
       registry.fill(HIST("hMlBinaryOutput"), candidate.mlProbDplusToPiKPi()[1], candidate.pt());
     }
   }
-  PROCESS_SWITCH(TaskDPlus, processBinaryML, "Process binary classification ML", false);
+  PROCESS_SWITCH(HfTaskDplus, processBinaryMl, "Process binary classification ML", false);
 
-  void processMultiML(soa::Join<aod::HfCandProng3, aod::HFSelDplusToPiKPiCandidate, aod::HFMlDplusToPiKPiCandidate> const& candidates)
+  void processMultiMl(soa::Join<aod::HfCand3Prong, aod::HfSelDplusToPiKPi, aod::HfMlDplusToPiKPi> const& candidates)
   {
     // Process ML information from multiclass classification
     for (auto& candidate : selectedDPlusCandidatesForML) {
       registry.fill(HIST("hMlMultiOutput"), candidate.mlProbDplusToPiKPi()[0], candidate.mlProbDplusToPiKPi()[1], candidate.mlProbDplusToPiKPi()[2], candidate.pt());
     }
   }
-  PROCESS_SWITCH(TaskDPlus, processMultiML, "Process multiclass classification ML", false);
+  PROCESS_SWITCH(HfTaskDplus, processMultiMl, "Process multiclass classification ML", false);
 };
 
 WorkflowSpec defineDataProcessing(ConfigContext const& cfgc)

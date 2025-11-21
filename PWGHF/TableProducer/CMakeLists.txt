@@ -63,6 +63,7 @@ o2physics_add_dpl_workflow(candidate-creator-bs
 o2physics_add_dpl_workflow(candidate-creator-cascade
                     SOURCES candidateCreatorCascade.cxx
                     PUBLIC_LINK_LIBRARIES O2Physics::AnalysisCore O2::DCAFitter O2Physics::AnalysisCCDB O2Physics::EventFilteringUtils
+                    COMPONENT_NAME Analysis)
 
 o2physics_add_dpl_workflow(candidate-creator-dstar
                     SOURCES candidateCreatorDstar.cxx

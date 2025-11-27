@@ -206,7 +206,6 @@ struct HfEventSelection : o2::framework::ConfigurableGroup {
 
   // util to retrieve trigger mask in case of software triggers
   Zorro zorro;
-  o2::framework::OutputObj<ZorroSummary> zorroSummary{"zorroSummary"};
   int currentRun{-1};
 
   /// Set standard preselection gap trigger (values taken from UD group)
@@ -247,7 +246,7 @@ struct HfEventSelection : o2::framework::ConfigurableGroup {
 
   /// \brief Inits the HF event selection object
   /// \param registry reference to the histogram registry
-  void init(o2::framework::HistogramRegistry& registry)
+  void init(o2::framework::HistogramRegistry& registry, o2::framework::OutputObj<ZorroSummary>& zorroSummary)
   {
     // we initialise the RCT checker
     if (requireGoodRct) {

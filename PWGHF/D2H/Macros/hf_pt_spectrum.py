@@ -61,6 +61,7 @@ def load_inputs(input_cfg):
         "DstartoD0pi",
         "LctopKpi",
         "LctopK0S",
+        "OmegacToOmegaPi"
     ]:
         print(f"\033[91mERROR: channel {channel} not supported. Exit\033[0m")
         sys.exit(2)
@@ -73,7 +74,7 @@ def load_inputs(input_cfg):
         print("\033[93mWARNING: switching from dsigmadpt to dNdpt\033[0m")
 
     energy = input_cfg["energy"]
-    if energy not in ["5TeV", "13TeV"]:
+    if energy not in ["5TeV", "13TeV", "13.6TeV"]:
         print(f"\033[91mERROR: energy {energy} not supported. Exit\033[0m")
         sys.exit(4)
 
@@ -100,11 +101,11 @@ def load_inputs(input_cfg):
         print(f"\033[91mERROR: raw-yield histo {rawy_hist_name}" f" not found in {rawy_file_name}. Exit\033[0m")
         sys.exit(6)
     histos["rawyields"].SetDirectory(0)
-    h_events = infile_rawy.Get(norm_hist_name)
-    if not h_events:
-        print(f"\033[91mERROR: normalisation histo {norm_hist_name}" f" not found in {rawy_file_name}. Exit\033[0m")
-        sys.exit(7)
-    h_events.SetDirectory(0)
+    #h_events = infile_rawy.Get(norm_hist_name)
+    #if not h_events:
+    #    print(f"\033[91mERROR: normalisation histo {norm_hist_name}" f" not found in {rawy_file_name}. Exit\033[0m")
+    #    sys.exit(7)
+    #h_events.SetDirectory(0)
     infile_rawy.Close()
 
     infile_eff = TFile.Open(eff_file_name)
@@ -133,6 +134,7 @@ def load_inputs(input_cfg):
         "DstartoD0pi": "hDstarD0pi",
         "LctopKpi": "hLcpkpi",
         "LctopK0S": "hLcK0sp",
+        "OmegacToOmegaPi": "hOmegacToOmegaPi"
     }
     histos["FONLL"] = {"prompt": {}, "nonprompt": {}}
     infile_fonll = TFile.Open(pred_file_name)
@@ -146,11 +148,11 @@ def load_inputs(input_cfg):
 
     # load normalisation info from common database
     norm = {}
-    with open("config/norm_database.yml", "r") as yml_norm_db:
-        norm_db = yaml.safe_load(yml_norm_db)
-    norm["BR"] = norm_db["BR"][channel]["value"]
-    norm["events"] = h_events.GetBinContent(1)
-    norm["sigmaMB"] = norm_db["sigma"]["Run2"][system][energy] if observable == "dsigmadpt" else 1.0
+    #with open("config/norm_database.yml", "r") as yml_norm_db:
+    #    norm_db = yaml.safe_load(yml_norm_db)
+    norm["BR"] = input_cfg["BR"]
+    norm["events"] = input_cfg["nTVX"]
+    norm["sigmaMB"] = input_cfg["sigma"] if observable == "dsigmadpt" else 1.0
 
     return histos, norm
 
